@@ -5,7 +5,10 @@ from .models import CustomUser, Payment
 class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
-        fields = ['id', 'date', 'course', 'lesson', 'amount', 'method']
+        fields = ['id', 'user', 'date', 'course', 'lesson', 'amount', 'method']
+        extra_kwargs = {
+            'user': {'read_only': True},  # Владелец устанавливается автоматически
+        }
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -49,6 +52,8 @@ class PublicUserSerializer(serializers.ModelSerializer):
 
 
 class PrivateUserSerializer(serializers.ModelSerializer):
+    payments = PaymentSerializer(many=True, read_only=True)  # История платежей
+
     class Meta:
         model = CustomUser
         fields = ['id', 'email', 'phone', 'city', 'avatar', 'payments']  # Полная информация
