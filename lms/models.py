@@ -23,3 +23,12 @@ class Lesson(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class Subscription(models.Model):
+    user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, related_name='subscriptions')  # Строковое представление
+    course = models.ForeignKey('lms.Course', on_delete=models.CASCADE, related_name='subscriptions')  # Строковое представление
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"Subscription: {self.user.email} -> {self.course.title}"
