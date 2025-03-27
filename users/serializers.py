@@ -5,7 +5,7 @@ from .models import CustomUser, Payment
 class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
-        fields = ['id', 'user', 'date', 'course', 'lesson', 'amount', 'method']
+        fields = ['id', 'user', 'date', 'course', 'lesson', 'amount', 'method', 'stripe_session_id']
         extra_kwargs = {
             'user': {'read_only': True},  # Владелец устанавливается автоматически
         }
