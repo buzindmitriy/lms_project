@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import generics, viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -27,6 +28,13 @@ class CourseViewSet(viewsets.ModelViewSet):
         elif self.action in ['retrieve', 'list']:
             self.permission_classes = [IsAuthenticated | IsModerator]
         return [permission() for permission in self.permission_classes]
+    @swagger_auto_schema(operation_description="Получение списка курсов")
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @swagger_auto_schema(operation_description="Создание нового курса")
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
 
 
 # Создание нового урока
@@ -37,6 +45,10 @@ class LessonCreateAPIView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)  # Привязываем урок к владельцу
+
+    @swagger_auto_schema(operation_description="Создание нового урока")
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
 
 
 # Получение списка уроков

@@ -54,7 +54,9 @@ class Payment(models.Model):
     course = models.ForeignKey(Course, on_delete=models.SET_NULL, null=True, blank=True, related_name='payments')
     lesson = models.ForeignKey(Lesson, on_delete=models.SET_NULL, null=True, blank=True, related_name='payments')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    method = models.CharField(max_length=10, choices=PAYMENT_METHODS)
+    method = models.CharField(max_length=10,
+                              choices=[('cash', 'Наличные'), ('transfer', 'Перевод на счет'), ('stripe', 'Stripe')])
+    stripe_session_id = models.CharField(max_length=500, blank=True, null=True)  # Хранит session_id
 
     def __str__(self):
-        return f"Payment by {self.user.email} for {self.course or self.lesson}"
+        return f"Payment by {self.user.email} for {self.course.title if self.course else 'no course'}"

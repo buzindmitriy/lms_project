@@ -1,14 +1,16 @@
+import stripe
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets, generics, status, serializers
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from lms.models import Course
 from .models import CustomUser, Payment
-from .serializers import UserSerializer, PaymentSerializer, UserRegisterSerializer, PrivateUserSerializer, \
-    PublicUserSerializer
+from .serializers import PaymentSerializer, UserRegisterSerializer, PrivateUserSerializer, PublicUserSerializer
+from .services import create_stripe_product, create_stripe_price, create_stripe_checkout_session
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -80,3 +82,50 @@ class UserRegisterView(generics.CreateAPIView):
             {"message": "User registered successfully", "user_id": user.id},
             status=status.HTTP_201_CREATED
         )
+
+
+class PaymentCreateAPIView(APIView):
+    def post(self, request, *args, **kwargs):
+        course_id = request.data.get('course_id')
+        amount = request.data.get('amount')
+
+        try:
+            course = Course.objects.get(id=course_id)
+        except Course.DoesNotExist:
+            return Response({"error": "Курс не найден"}, status=status.HTTP_404_NOT_FOUND)
+
+        product_id = create_stripe_product(course.title, float(amount))
+        price_id = create_stripe_price(product_id, float(amount))
+        session_id = create_stripe_checkout_session(price_id)
+
+        payment = Payment.objects.create(
+            user=request.user,
+            course=course,
+            amount=amount,
+            method='stripe',
+            stripe_session_id=session_id  # Сохраняем session_id
+        )
+
+        serializer = PaymentSerializer(payment)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class PaymentStatusAPIView(APIView):
+    def get(self, request, payment_id, *args, **kwargs):
+        try:
+            payment = Payment.objects.get(id=payment_id, user=request.user)
+        except Payment.DoesNotExist:
+            return Response({"error": "Платеж не найден"}, status=status.HTTP_404_NOT_FOUND)
+
+        if not payment.stripe_session_id:
+            return Response({"error": "Статус платежа недоступен"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            session = stripe.checkout.Session.retrieve(payment.stripe_session_id)
+        except stripe.error.InvalidRequestError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            "status": session.payment_status,
+            "session_id": payment.stripe_session_id
+        }, status=status.HTTP_200_OK)
