@@ -2,6 +2,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
 from users.models import CustomUser
+from users.tasks import block_inactive_users
 
 
 class UserCRUDTests(TestCase):
@@ -41,3 +42,21 @@ class UserCRUDTests(TestCase):
         # Проверяем наличие поля email в ответе
         self.assertIn('email', response.data)
         self.assertEqual(response.data['email'], 'profileuser@example.com')
+
+
+class UserTaskTests(TestCase):
+    def setUp(self):
+        CustomUser.objects.create_user(email='active@example.com', password='testpassword', last_login=timezone.now())
+        CustomUser.objects.create_user(email='inactive@example.com', password='testpassword', last_login=timezone.now() - timedelta(days=31))
+
+    def test_block_inactive_users(self):
+        result = block_inactive_users()
+        self.assertIn("1 users have been blocked.", result)
+
+        # Проверяем статус пользователей
+        active_user = CustomUser.objects.get(email='active@example.com')
+        inactive_user = CustomUser.objects.get(email='inactive@example.com')
+
+        self.assertTrue(active_user.is_active)
+        self.assertFalse(inactive_user.is_active)
+

@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
@@ -188,3 +190,26 @@ class PaymentCRUDTests(TestCase):
         response = self.client.get('/api/users/payments/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
+
+
+class CourseCRUDTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = CustomUser.objects.create_user(email='test@example.com', password='testpassword')
+        self.client.force_authenticate(user=self.user)
+
+        self.course = Course.objects.create(
+            title='Test Course',
+            description='Test Description',
+            owner=self.user
+        )
+        Subscription.objects.create(user=self.user, course=self.course, is_active=True)
+
+    @patch('lms.tasks.send_course_update_email.delay')  # Мокаем задачу
+    def test_update_course(self, mock_send_email):
+        data = {'title': 'Updated Course'}
+        response = self.client.put(f'/api/lms/courses/{self.course.id}/', data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        # Проверяем, что задача была вызвана
+        mock_send_email.assert_called_once_with(self.course.id)
