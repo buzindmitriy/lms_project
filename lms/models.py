@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 from config import settings
 
@@ -8,6 +9,11 @@ class Course(models.Model):
     title = models.CharField(max_length=255)
     preview = models.ImageField(upload_to='course_previews/', blank=True, null=True)
     description = models.TextField()
+    last_updated = models.DateTimeField(default=timezone.now)
+
+    def save(self, *args, **kwargs):
+        self.last_updated = timezone.now()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.title

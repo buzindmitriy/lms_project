@@ -9,6 +9,7 @@ from users.permissions import IsOwner, IsModerator
 from .models import Course, Lesson, Subscription
 from .paginators import CustomPageNumberPagination
 from .serializers import CourseSerializer, LessonSerializer
+from lms.tasks import send_course_update_email
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -28,6 +29,7 @@ class CourseViewSet(viewsets.ModelViewSet):
         elif self.action in ['retrieve', 'list']:
             self.permission_classes = [IsAuthenticated | IsModerator]
         return [permission() for permission in self.permission_classes]
+
     @swagger_auto_schema(operation_description="Получение списка курсов")
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
@@ -35,6 +37,10 @@ class CourseViewSet(viewsets.ModelViewSet):
     @swagger_auto_schema(operation_description="Создание нового курса")
     def create(self, request, *args, **kwargs):
         return super().create(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        updated_course = serializer.save()
+        send_course_update_email.delay(updated_course.id)
 
 
 # Создание нового урока
